@@ -1,0 +1,25 @@
+{
+  "id": "f2b3c4d5-e6f7-8a9b-0c1d-2e3f4a5b6c7d",
+  "name": "Live",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "https://api.yourdomain.com/api/v1",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "task_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}
