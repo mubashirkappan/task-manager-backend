@@ -1,0 +1,116 @@
+name: Backend CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # -------------------------------------------------------------
+  # Job 1: Test & Lint (Runs on PRs and Push to main)
+  # -------------------------------------------------------------
+  tests:
+    name: Run Automated Tests
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: backend_testing
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_USER: sail
+          MYSQL_PASSWORD: password
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP Environment
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, xml, ctype, iconv, intl, pdo_mysql, bcmath, zip
+          coverage: none
+
+      - name: Validate composer.json and composer.lock
+        run: composer validate --strict
+
+      - name: Cache Composer Dependencies
+        id: composer-cache
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-
+
+      - name: Install Composer Dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Prepare Test Environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          php artisan jwt:secret --force
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: backend_testing
+          DB_USERNAME: sail
+          DB_PASSWORD: password
+
+      - name: Run Database Migrations
+        run: php artisan migrate --force
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: backend_testing
+          DB_USERNAME: sail
+          DB_PASSWORD: password
+
+      - name: Execute Pest Tests
+        run: ./vendor/bin/pest
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: backend_testing
+          DB_USERNAME: sail
+          DB_PASSWORD: password
+
+  # -------------------------------------------------------------
+  # Job 2: Deploy (Runs ONLY when merged/pushed into main)
+  # -------------------------------------------------------------
+  deploy:
+    name: Deploy to Production
+    needs: tests
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy step placeholder
+        run: |
+          echo "All checks passed! Deploying commit: ${{ github.sha }} to production..."
+
+      # --- EXAMPLE: Deploy via SSH to VPS / Cloud Server ---
+      # - name: Deploy via SSH
+      #   uses: appleboy/ssh-action@v1.0.3
+      #   with:
+      #     host: ${{ secrets.SSH_HOST }}
+      #     username: ${{ secrets.SSH_USER }}
+      #     key: ${{ secrets.SSH_PRIVATE_KEY }}
+      #     script: |
+      #       cd /var/www/backend
+      #       git pull origin main
+      #       docker compose exec -T app composer install --no-dev --optimize-autoloader
+      #       docker compose exec -T app php artisan migrate --force
+      #       docker compose exec -T app php artisan config:cache
+      #       docker compose exec -T app php artisan route:cache
+      #       docker compose exec -T app php artisan view:cache
