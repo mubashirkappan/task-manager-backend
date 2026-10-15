@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
 
 class AuthController extends Controller
 {
@@ -52,16 +53,24 @@ class AuthController extends Controller
 
     public function refresh(): JsonResponse
     {
-        return $this->respondWithToken(Auth::guard('api')->refresh());
+        $guard = Auth::guard('api');
+
+        try {
+            $token = $guard->refresh();
+        } catch (JWTException) {
+            return response()->json(['error' => 'Token cannot be refreshed'], 401);
+        }
+
+        return $this->respondWithToken($token, $guard->setToken($token)->user());
     }
 
-    protected function respondWithToken(string $token): JsonResponse
+    protected function respondWithToken(string $token, ?User $user = null): JsonResponse
     {
         return response()->json([
             'access_token' => $token,
             'token_type'   => 'bearer',
             'expires_in'   => Auth::guard('api')->factory()->getTTL() * 60,
-            'user'         => Auth::guard('api')->user(),
+            'user'         => $user ?? Auth::guard('api')->user(),
         ]);
     }
 }
