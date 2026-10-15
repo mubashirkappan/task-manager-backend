@@ -1,58 +1,184 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Laravel 11 Task Management API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Stateless, containerized REST API built with **Laravel 11**, featuring **JWT authentication**, **UUIDv4 primary keys**, and **Role-Based Access Control (RBAC)**.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Architecture & Features
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **Authentication:** Stateless token-based auth with `php-open-source-saver/jwt-auth`.
+- **Primary Keys:** UUIDv4 keys across all models (`HasUuids`).
+- **Authorization & RBAC:**
+  - **Admin:** Global CRUD access to all users' tasks.
+  - **User:** Strict tenant isolation; access restricted to self-created tasks.
+- **Task Management:** Full CRUD with title search, status filters (`pending`, `in_progress`, `completed`), and server-side pagination.
+- **Docker Environment:** Multi-container setup with PHP 8.4-FPM, Nginx, and MySQL 8.0.
+- **Automated Testing:** Pest PHP feature test suite verifying RBAC and tenant boundaries.
+- **CI/CD:** GitHub Actions workflow executing migrations and tests on every Pull Request and push to `main`.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Directory Structure
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```text
+backend/
+├── app/
+│   ├── Enums/UserRole.php          # Admin and User role definitions
+│   ├── Http/Controllers/Api/
+│   │   ├── AuthController.php      # Login, Register, Me, Refresh, Logout
+│   │   └── TaskController.php      # Task CRUD operations
+│   ├── Http/Requests/              # StoreTaskRequest, UpdateTaskRequest, RegisterRequest
+│   ├── Http/Resources/             # TaskResource
+│   ├── Models/                     # User, Task (HasUuids)
+│   └── Policies/TaskPolicy.php     # RBAC policy rules
+├── database/
+│   ├── migrations/                 # UUID migrations for users and tasks
+│   └── seeders/                    # UserSeeder, TaskSeeder, DatabaseSeeder
+├── docker/
+│   ├── nginx/default.conf          # Nginx FastCGI configuration
+│   └── php/
+│       ├── Dockerfile              # PHP 8.4-FPM Alpine image
+│       └── local.ini               # Custom PHP configurations
+├── postman/
+│   ├── Laravel_Tasks_API.postman_collection.json
+│   ├── Local.postman_environment.json
+│   └── Live.postman_environment.json
+├── routes/
+│   └── api.php                     # API route definitions
+├── tests/
+│   └── Feature/TaskRbacTest.php    # Pest authorization & isolation tests
+├── .github/workflows/ci-cd.yml     # Automated CI/CD pipeline
+├── docker-compose.yml
+└── .env.example
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
 
-## Agentic Development
+## Environment Configuration
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+   cp .env.example .env
+    
+    or add this to your `.env` file:
+     
+    APP_NAME=Laravel
+    APP_ENV=local
+    APP_KEY=
+    APP_DEBUG=true
+    APP_URL=http://localhost:8000
+    FRONTEND_URL=http://localhost:5173
+    
+    # Database configuration (Docker defaults)
+    DB_CONNECTION=mysql
+    DB_HOST=db
+    DB_PORT=3306
+    DB_DATABASE=backend
+    DB_USERNAME=sail
+    DB_PASSWORD=password
+    
+    # JWT Settings
+    JWT_SECRET=
+    JWT_ALGO=HS256
+    JWT_TTL=60
+    JWT_REFRESH_TTL=20160  
 
-```bash
-composer require laravel/boost --dev
+1. Running with Docker Compose (Recommended)
 
-php artisan boost:install
-```
+    docker compose up -d --build
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+    This starts:
 
-## Contributing
+        web: Nginx proxy listening on http://localhost:8000
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+        app: PHP 8.4-FPM running on internal port 9000
 
-## Code of Conduct
+        db: MySQL 8.0 accessible externally on port 3307 (mapped internally to 3306 to prevent conflicts with native local MySQL)
+    
+    Verify that all containers are running:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+        docker compose ps
 
-## Security Vulnerabilities
+2. Install PHP Dependencies
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+    docker compose exec app composer install
 
-## License
+3. Generate Encryption & JWT Keys
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+    docker compose exec app php artisan key:generate
+    docker compose exec app php artisan jwt:secret
+
+4. Run Migrations & Seed Database
+
+    docker compose exec app php artisan migrate --seed
+
+5. Check API Status
+
+    http://localhost:8000/api
+
+
+## Running Natively (Without Docker)
+    
+    Prerequisites
+        PHP 8.4+ with pdo_mysql, mbstring, bcmath, intl, zip
+
+        Composer 2+
+
+        MySQL 8.0+    
+
+    steps
+        # 1. Install dependencies
+        composer install
+
+        # 2. Setup environment & keys
+        cp .env.example .env
+        php artisan key:generate
+        php artisan jwt:secret --force
+
+        # 3. Create the database in MySQL:
+        # CREATE DATABASE backend;
+
+        # 4. Run migrations and seed data
+        php artisan migrate:fresh --seed
+
+        # 5. Serve the API
+        php artisan serve --port=8000
+
+##Seeded Test Accounts
+    name       email                  password         
+    
+    Admin       admin@example.com       password123 
+    User 1      user1@example.com       password123 
+    User 2      user2@example.com       password123 
+
+## Automated Testing
+
+    Inside Docker:
+    
+        docker compose exec app ./vendor/bin/pest   
+
+    Natively:
+    
+        ./vendor/bin/pest
+
+## Postman API Collection
+
+    Postman schemas and environment configs are stored in the /postman directory:
+
+        postman/Laravel_Tasks_API.postman_collection.json
+
+        postman/Local.postman_environment.json
+
+        postman/Live.postman_environment.json
+
+
+## Common Docker Commands
+Command                                                         Action 
+docker compose up -d                                Start containers in background
+
+docker compose down                                 Stop and remove containers
+
+docker compose restart web                          Restart Nginx web server
+
+docker compose logs -f app                          View live PHP-FPM container logs
+
+docker compose exec app bash                        Open a bash shell inside the PHP container
+
+docker compose exec app php artisan <cmd>           Run Artisan commands inside the container
